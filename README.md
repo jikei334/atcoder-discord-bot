@@ -20,7 +20,46 @@
 |------|------|------|
 | [ ] | 週次ランキング自動投稿 | 毎週月曜 9:00 JST にランキングをスレッド投稿（上位3人） |
 
-### インフラ
+## 起動方法
+
+### 前提
+
+`.env` ファイルを作成して以下の環境変数を設定してください。
+
+```
+DISCORD_TOKEN=
+GUILD_ID=
+RANKING_CHANNEL_ID=
+```
+
+### 開発時
+
+```bash
+npm install
+npm run deploy   # スラッシュコマンドを Discord に登録（初回・更新時のみ）
+npm run dev      # 開発用起動（ts-node）
+```
+
+### 本番（ローカル）
+
+```bash
+npm run build
+npm start
+```
+
+### 本番（コンテナ）
+
+```bash
+podman compose up -d --build
+
+# スラッシュコマンドのデプロイ（初回・更新時のみ）
+podman compose run --rm bot node dist/deploy.js
+
+# ログ確認
+podman compose logs -f
+```
+
+## インフラ
 
 | 状況 | 項目 | 説明 |
 |------|------|------|
