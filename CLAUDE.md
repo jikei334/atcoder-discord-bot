@@ -181,6 +181,7 @@ AtCoder には公式 API がないため、以下を利用する（AtCoder Probl
 
 ```
 DISCORD_TOKEN=
+CLIENT_ID=
 GUILD_ID=
 RANKING_CHANNEL_ID=
 ```
