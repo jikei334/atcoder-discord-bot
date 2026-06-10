@@ -2,6 +2,7 @@ import { Client, GatewayIntentBits, Interaction, Collection } from 'discord.js';
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
+import { startWeeklyRankingTask } from './tasks/weeklyRanking';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ for (const file of commandFiles) {
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user?.tag}`);
+  startWeeklyRankingTask(client);
 });
 
 client.on('interactionCreate', async (interaction: Interaction) => {
