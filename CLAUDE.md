@@ -173,9 +173,9 @@ AtCoder には公式 API がないため、以下を利用する（AtCoder Probl
 - コンテスト一覧: `https://kenkoooo.com/atcoder/resources/contests.json`
   - 直近コンテストの候補表示に使用（過去2週間 + 今後1週間を対象）
   - `duration_second` フィールドを AHC のショート/ロング判定に使用
-- ユーザー提出一覧: `https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user={atcoder_id}&epoch_second={epoch}`
+- ユーザー提出一覧: `https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user={atcoder_id}&from_second={epoch}`
   - `/report` でコンテスト選択後、そのコンテストの AC 済み問題を自動チェックするために使用
-  - `epoch_second` にはコンテスト開始時刻を指定して絞り込む
+  - `from_second` にはコンテスト開始時刻を指定して絞り込む（最大500件返却）
 
 ## 環境変数（.env）
 

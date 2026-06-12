@@ -119,8 +119,8 @@ async function handleSelectMenu(interaction: StringSelectMenuInteraction): Promi
     try {
       const accepted = await fetchAcceptedProblems(user.atcoderId, contestId, contest.start_epoch_second);
       autoChecked = new Set(accepted);
-    } catch {
-      // 取得失敗は無視して全未チェックで進む
+    } catch (err) {
+      console.error(`[report] fetchAcceptedProblems failed:`, err);
     }
   }
 

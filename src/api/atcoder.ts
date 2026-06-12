@@ -78,10 +78,8 @@ export async function fetchProblemIds(contestId: string): Promise<string[]> {
 }
 
 export async function fetchAcceptedProblems(atcoderId: string, contestId: string, startEpoch: number): Promise<string[]> {
-  const url = `${SUBMISSIONS_URL}?user=${encodeURIComponent(atcoderId)}&epoch_second=${startEpoch}`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const submissions = (await res.json()) as Submission[];
+  const submissions = await fetchUserSubmissions(atcoderId, startEpoch);
+  if (!submissions) return [];
 
   const accepted = new Set<string>();
   for (const s of submissions) {
@@ -91,4 +89,11 @@ export async function fetchAcceptedProblems(atcoderId: string, contestId: string
     }
   }
   return Array.from(accepted);
+}
+
+async function fetchUserSubmissions(atcoderId: string, fromSecond: number): Promise<Submission[] | null> {
+  const url = `${SUBMISSIONS_URL}?user=${encodeURIComponent(atcoderId)}&from_second=${fromSecond}`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'atcoder-discord-bot' } });
+  if (!res.ok) return null;
+  return res.json() as Promise<Submission[]>;
 }
