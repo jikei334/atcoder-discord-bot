@@ -2,6 +2,7 @@ import { ContestType } from '../data/store';
 
 const CONTESTS_URL = 'https://kenkoooo.com/atcoder/resources/contests.json';
 const SUBMISSIONS_URL = 'https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions';
+const ATCODER_CONTESTS_PAGE = 'https://atcoder.jp/contests/?lang=ja';
 
 export interface Contest {
   id: string;
@@ -22,6 +23,8 @@ export interface Submission {
 
 let contestsCache: Contest[] | null = null;
 let contestsCachedAt = 0;
+let atcoderPageCache: Contest[] | null = null;
+let atcoderPageCachedAt = 0;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 export async function fetchContests(): Promise<Contest[]> {
@@ -36,11 +39,65 @@ export async function fetchContests(): Promise<Contest[]> {
 }
 
 export async function fetchRecentContests(): Promise<Contest[]> {
-  const all = await fetchContests();
+  const [kenkoooo, atcoderPage] = await Promise.all([
+    fetchContests(),
+    fetchContestsFromAtCoderJp().catch(() => [] as Contest[]),
+  ]);
+
   const now = Date.now() / 1000;
   const twoWeeksAgo = now - 14 * 24 * 60 * 60;
   const oneWeekLater = now + 7 * 24 * 60 * 60;
-  return all.filter(c => c.start_epoch_second >= twoWeeksAgo && c.start_epoch_second <= oneWeekLater);
+
+  const merged = new Map<string, Contest>();
+  for (const c of kenkoooo) {
+    if (c.start_epoch_second >= twoWeeksAgo && c.start_epoch_second <= oneWeekLater)
+      merged.set(c.id, c);
+  }
+  for (const c of atcoderPage) {
+    if (c.start_epoch_second >= twoWeeksAgo && c.start_epoch_second <= oneWeekLater && !merged.has(c.id))
+      merged.set(c.id, c);
+  }
+  return Array.from(merged.values());
+}
+
+async function fetchContestsFromAtCoderJp(): Promise<Contest[]> {
+  const now = Date.now();
+  if (atcoderPageCache && now - atcoderPageCachedAt < CACHE_TTL_MS) return atcoderPageCache;
+
+  const res = await fetch(ATCODER_CONTESTS_PAGE, { headers: { 'User-Agent': 'atcoder-discord-bot' } });
+  if (!res.ok) return atcoderPageCache ?? [];
+  const html = await res.text();
+  atcoderPageCache = parseContestsHtml(html);
+  atcoderPageCachedAt = now;
+  return atcoderPageCache;
+}
+
+function parseContestsHtml(html: string): Contest[] {
+  const contests: Contest[] = [];
+  const rowRe = /<tr>([\s\S]*?)<\/tr>/g;
+  const timeRe = /fixtime-full['"]>([\d-]+ [\d:]+\+\d+)<\/time>/;
+  const linkRe = /href="\/contests\/([a-z0-9_-]+)">([^<]+)<\/a>/;
+  const durRe = /<td[^>]*>(\d+:\d+)<\/td>/;
+
+  let m: RegExpExecArray | null;
+  while ((m = rowRe.exec(html)) !== null) {
+    const row = m[1];
+    const timeMatch = timeRe.exec(row);
+    const linkMatch = linkRe.exec(row);
+    const durMatch = durRe.exec(row);
+    if (!timeMatch || !linkMatch || !durMatch) continue;
+
+    const startEpoch = Math.floor(new Date(timeMatch[1]).getTime() / 1000);
+    const [h, min] = durMatch[1].split(':').map(Number);
+    contests.push({
+      id: linkMatch[1],
+      title: linkMatch[2].trim(),
+      start_epoch_second: startEpoch,
+      duration_second: h * 3600 + min * 60,
+      rate_change: '-',
+    });
+  }
+  return contests;
 }
 
 export function detectContestType(contest: Contest): ContestType | null {
