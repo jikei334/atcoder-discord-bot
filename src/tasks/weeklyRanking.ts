@@ -15,7 +15,12 @@ async function postWeeklyRanking(client: Client): Promise<void> {
   if (!channel || !(channel instanceof TextChannel)) return;
 
   const { start, end } = getLastWeekRange();
-  const reports = getReports().filter(r => r.reportedAt >= start && r.reportedAt < end);
+  const startDate = start.slice(0, 10);
+  const endDate = end.slice(0, 10);
+  const reports = getReports().filter(r => {
+    const d = r.contestStartDate ?? r.reportedAt.slice(0, 10);
+    return d >= startDate && d < endDate;
+  });
 
   if (reports.length === 0) return;
 

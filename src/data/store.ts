@@ -15,6 +15,7 @@ export interface ReportRecord {
   contestId: string;
   contestName: string;
   contestType: ContestType;
+  contestStartDate: string; // YYYY-MM-DD（JST）
   solvedProblems: string[];
   comment: string;
   reportedAt: string;

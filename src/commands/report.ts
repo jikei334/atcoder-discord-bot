@@ -240,6 +240,9 @@ async function submitReport(
     r => r.discordUserId === interaction.user.id && r.contestId === session.contest.id
   );
 
+  const contestStartDate = new Date(session.contest.start_epoch_second * 1000)
+    .toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }); // YYYY-MM-DD
+
   const record = {
     id: existingIndex >= 0 ? reports[existingIndex].id : uuidv4(),
     discordUserId: interaction.user.id,
@@ -247,6 +250,7 @@ async function submitReport(
     contestId: session.contest.id,
     contestName: session.contest.title,
     contestType: session.contestType,
+    contestStartDate,
     solvedProblems,
     comment,
     reportedAt: new Date().toISOString(),

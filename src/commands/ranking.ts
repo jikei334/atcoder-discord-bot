@@ -22,7 +22,7 @@ async function handleCommand(interaction: ChatInputCommandInteraction): Promise<
   const reports = getReports();
 
   const filtered = config.periodStartDate
-    ? reports.filter(r => r.reportedAt >= `${config.periodStartDate}T00:00:00`)
+    ? reports.filter(r => (r.contestStartDate ?? r.reportedAt.slice(0, 10)) >= config.periodStartDate!)
     : reports;
 
   const periodLabel = config.periodStartDate
