@@ -8,17 +8,17 @@
 
 | 状況 | コマンド | 説明 |
 |------|----------|------|
-| [ ] | `/register <atcoder_id>` | AtCoder ID を Discord ユーザーに紐づける |
-| [ ] | `/report` | コンテスト参加を報告する（セレクトメニュー＋ボタン） |
-| [ ] | `/ranking` | 集計期間内の参加回数ランキングを表示（3カテゴリ、上位3人＋自分） |
-| [ ] | `/setperiod <date>` | 集計期間の開始日を設定する（管理者専用） |
-| [ ] | `/export` | 参加データを CSV でエクスポートする |
+| [x] | `/register <atcoder_id>` | AtCoder ID を Discord ユーザーに紐づける |
+| [x] | `/report` | コンテスト参加を報告する（セレクトメニュー＋ボタン） |
+| [x] | `/ranking` | 集計期間内の参加回数ランキングを表示（3カテゴリ、上位3人＋自分） |
+| [x] | `/setperiod` | 集計期間の開始日を設定する（管理者専用） |
+| [x] | `/export` | 参加データを CSV でエクスポートする |
 
 ### 自動タスク
 
 | 状況 | 機能 | 説明 |
 |------|------|------|
-| [ ] | 週次ランキング自動投稿 | 毎週月曜 9:00 JST にランキングをスレッド投稿（上位3人） |
+| [x] | 週次ランキング自動投稿 | 毎週月曜 9:00 JST にランキングをスレッド投稿（上位3人） |
 
 ## 起動方法
 
@@ -28,6 +28,7 @@
 
 ```
 DISCORD_TOKEN=
+CLIENT_ID=
 GUILD_ID=
 RANKING_CHANNEL_ID=
 ```
@@ -63,6 +64,6 @@ podman compose logs -f
 
 | 状況 | 項目 | 説明 |
 |------|------|------|
-| [ ] | コマンドデプロイスクリプト | `npm run deploy` でスラッシュコマンドを Discord に登録 |
-| [ ] | Dockerfile | マルチステージビルドで本番イメージを軽量化 |
-| [ ] | compose.yaml | Podman / Docker Compose でのコンテナ起動設定 |
+| [x] | コマンドデプロイスクリプト | `npm run deploy` でスラッシュコマンドを Discord に登録 |
+| [x] | Dockerfile | マルチステージビルドで本番イメージを軽量化 |
+| [x] | compose.yaml | Podman / Docker Compose でのコンテナ起動設定 |

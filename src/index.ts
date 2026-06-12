@@ -35,7 +35,7 @@ client.on('interactionCreate', async (interaction: Interaction) => {
         await interaction.reply({ content: 'エラーが発生しました。', ephemeral: true });
       }
     }
-  } else if (interaction.isStringSelectMenu() || interaction.isButton()) {
+  } else if (interaction.isStringSelectMenu() || interaction.isButton() || interaction.isModalSubmit()) {
     const [commandName] = interaction.customId.split(':');
     const command = commands.get(commandName);
     if (!command) return;
