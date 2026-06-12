@@ -1,12 +1,15 @@
 import {
   ActionRowBuilder,
-  ButtonInteraction,
   ChatInputCommandInteraction,
   Interaction,
   MessageFlags,
+  ModalBuilder,
+  ModalSubmitInteraction,
   SlashCommandBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuInteraction,
+  TextInputBuilder,
+  TextInputStyle,
 } from 'discord.js';
 import { getConfig, saveConfig } from '../data/store';
 
@@ -16,7 +19,6 @@ export const data = new SlashCommandBuilder()
 
 const ADMIN_ROLE_NAME = '管理者';
 
-// 年の選択肢（現在年から前後2年）
 function yearOptions() {
   const current = new Date().getFullYear();
   return [current - 2, current - 1, current, current + 1].map(y => ({
@@ -25,19 +27,15 @@ function yearOptions() {
   }));
 }
 
-// 月の選択肢
 const monthOptions = Array.from({ length: 12 }, (_, i) => ({
   label: `${i + 1}月`,
   value: String(i + 1).padStart(2, '0'),
 }));
 
-// 日の選択肢（1〜31）
-const dayOptions = Array.from({ length: 31 }, (_, i) => ({
-  label: `${i + 1}日`,
-  value: String(i + 1).padStart(2, '0'),
-}));
+function getDaysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
 
-// ユーザーごとの入力途中状態
 const sessions = new Map<string, { year?: string; month?: string }>();
 
 export async function execute(interaction: Interaction): Promise<void> {
@@ -45,6 +43,8 @@ export async function execute(interaction: Interaction): Promise<void> {
     await handleCommand(interaction);
   } else if (interaction.isStringSelectMenu()) {
     await handleSelectMenu(interaction);
+  } else if (interaction.isModalSubmit()) {
+    await handleModalSubmit(interaction);
   }
 }
 
@@ -97,39 +97,57 @@ async function handleSelectMenu(interaction: StringSelectMenuInteraction): Promi
     }
     session.month = interaction.values[0];
 
-    const select = new StringSelectMenuBuilder()
-      .setCustomId('setperiod:day')
-      .setPlaceholder('日を選択してください')
-      .addOptions(dayOptions);
+    const lastDay = getDaysInMonth(parseInt(session.year, 10), parseInt(session.month, 10));
+    const modal = new ModalBuilder()
+      .setCustomId('setperiod:day_modal')
+      .setTitle('集計開始日の設定')
+      .addComponents(
+        new ActionRowBuilder<TextInputBuilder>().addComponents(
+          new TextInputBuilder()
+            .setCustomId('day_input')
+            .setLabel(`日（1〜${lastDay}）`)
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setMinLength(1)
+            .setMaxLength(2)
+            .setPlaceholder(`1〜${lastDay}`)
+        )
+      );
+    await interaction.showModal(modal);
+  }
+}
 
-    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
-    await interaction.update({ content: `${session.year}年${session.month}月 ✅\n集計開始日の**日**を選択してください：`, components: [row] });
+async function handleModalSubmit(interaction: ModalSubmitInteraction): Promise<void> {
+  const [, action] = interaction.customId.split(':');
+  if (action !== 'day_modal') return;
+
+  const session = sessions.get(interaction.user.id);
+  if (!session?.year || !session?.month) {
+    await interaction.reply({ content: 'セッションが切れました。もう一度 /setperiod を実行してください。', ephemeral: true });
     return;
   }
 
-  if (step === 'day') {
-    const session = sessions.get(interaction.user.id);
-    if (!session?.year || !session?.month) {
-      await interaction.update({ content: 'セッションが切れました。もう一度 /setperiod を実行してください。', components: [] });
-      return;
-    }
+  sessions.delete(interaction.user.id);
 
-    sessions.delete(interaction.user.id);
+  const dayInput = interaction.fields.getTextInputValue('day_input').trim();
+  const dayNum = parseInt(dayInput, 10);
+  const lastDay = getDaysInMonth(parseInt(session.year, 10), parseInt(session.month, 10));
 
-    const day = interaction.values[0];
-    const dateStr = `${session.year}-${session.month}-${day}`;
+  if (isNaN(dayNum) || dayNum < 1 || dayNum > lastDay) {
+    await interaction.reply({ content: `「${dayInput}」は無効な日付です。1〜${lastDay} の数字を入力してください。`, ephemeral: true });
+    return;
+  }
 
-    // 日付の妥当性確認
-    const date = new Date(`${dateStr}T00:00:00+09:00`);
-    if (isNaN(date.getTime()) || date.getDate() !== parseInt(day, 10)) {
-      await interaction.update({ content: `「${dateStr}」は存在しない日付です。もう一度 /setperiod を実行してください。`, components: [] });
-      return;
-    }
+  const day = String(dayNum).padStart(2, '0');
+  const dateStr = `${session.year}-${session.month}-${day}`;
 
-    const config = getConfig();
-    config.periodStartDate = dateStr;
-    saveConfig(config);
+  const config = getConfig();
+  config.periodStartDate = dateStr;
+  saveConfig(config);
 
+  if (interaction.isFromMessage()) {
     await interaction.update({ content: `集計期間の開始日を **${dateStr}** に設定しました。`, components: [] });
+  } else {
+    await interaction.reply({ content: `集計期間の開始日を **${dateStr}** に設定しました。`, flags: MessageFlags.Ephemeral });
   }
 }
