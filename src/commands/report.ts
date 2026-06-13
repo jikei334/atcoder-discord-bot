@@ -82,9 +82,14 @@ async function handleSelectMenu(interaction: StringSelectMenuInteraction): Promi
   await interaction.deferUpdate();
 
   const contestId = interaction.values[0];
+
   let contests: Contest[];
+  let problemLabels: string[];
   try {
-    contests = await fetchRecentContests();
+    [contests, problemLabels] = await Promise.all([
+      fetchRecentContests(),
+      fetchProblemIds(contestId).catch(() => [] as string[]),
+    ]);
   } catch {
     await interaction.editReply({ content: 'コンテスト情報の取得に失敗しました。', components: [] });
     return;
@@ -99,14 +104,6 @@ async function handleSelectMenu(interaction: StringSelectMenuInteraction): Promi
   const detectedType = detectContestType(contest);
   const contestType: ContestType = detectedType ?? 'Other';
 
-  let problemLabels: string[];
-  try {
-    problemLabels = await fetchProblemIds(contestId);
-  } catch {
-    problemLabels = [];
-  }
-
-  // デフォルト問題ラベル（取得できなかった場合）
   if (problemLabels.length === 0) {
     problemLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
   }
@@ -184,7 +181,8 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     } else {
       session.selected.add(param);
     }
-    await interaction.update(buildProblemSelectionMessage(session.problemLabels, session.selected, session.contest.title));
+    await interaction.deferUpdate();
+    await interaction.editReply(buildProblemSelectionMessage(session.problemLabels, session.selected, session.contest.title));
     return;
   }
 
