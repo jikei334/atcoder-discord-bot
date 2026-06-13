@@ -33,6 +33,35 @@ GUILD_ID=
 RANKING_CHANNEL_ID=
 ```
 
+#### 各値の取得方法
+
+**`DISCORD_TOKEN` と `CLIENT_ID`（Bot トークンとアプリケーション ID）**
+
+1. [Discord Developer Portal](https://discord.com/developers/applications) にアクセスしてログイン
+2. 「New Application」でアプリケーションを作成
+3. 左メニューの「General Information」→ **Application ID** が `CLIENT_ID`
+4. 左メニューの「Bot」→「Reset Token」でトークンを発行 → **Token** が `DISCORD_TOKEN`
+   - トークンは一度しか表示されないため、必ず控えておくこと
+
+**`GUILD_ID`（Discord サーバーの ID）**
+
+1. Discord アプリの設定 →「詳細設定」→「開発者モード」をオン
+2. Bot を追加したいサーバーを右クリック →「IDをコピー」→ これが `GUILD_ID`
+
+**`RANKING_CHANNEL_ID`（ランキングを投稿するチャンネルの ID）**
+
+1. 開発者モードをオンにした状態で、投稿先チャンネルを右クリック →「IDをコピー」→ これが `RANKING_CHANNEL_ID`
+
+#### Bot をサーバーに追加する
+
+1. Developer Portal の「OAuth2」→「URL Generator」を開く
+2. Scopes で `bot` と `applications.commands` にチェック
+3. Bot Permissions で以下にチェック：
+   - `Send Messages`
+   - `Create Public Threads`
+   - `Send Messages in Threads`
+4. 生成された URL をブラウザで開き、サーバーに Bot を追加
+
 ### 開発時
 
 ```bash
