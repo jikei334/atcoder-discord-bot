@@ -3,6 +3,7 @@ import { ContestType } from '../data/store';
 const CONTESTS_URL = 'https://kenkoooo.com/atcoder/resources/contests.json';
 const SUBMISSIONS_URL = 'https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions';
 const ATCODER_CONTESTS_PAGE = 'https://atcoder.jp/contests/?lang=ja';
+const ATCODER_AWC_ARCHIVE = 'https://atcoder.jp/contests/archive?lang=ja&ratedType=0&category=20&keyword=';
 
 export interface Contest {
   id: string;
@@ -25,6 +26,8 @@ let contestsCache: Contest[] | null = null;
 let contestsCachedAt = 0;
 let atcoderPageCache: Contest[] | null = null;
 let atcoderPageCachedAt = 0;
+let awcArchiveCache: Contest[] | null = null;
+let awcArchiveCachedAt = 0;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 export async function fetchContests(): Promise<Contest[]> {
@@ -39,9 +42,10 @@ export async function fetchContests(): Promise<Contest[]> {
 }
 
 export async function fetchRecentContests(): Promise<Contest[]> {
-  const [kenkoooo, atcoderPage] = await Promise.all([
+  const [kenkoooo, atcoderPage, awcArchive] = await Promise.all([
     fetchContests(),
     fetchContestsFromAtCoderJp().catch(() => [] as Contest[]),
+    fetchAwcArchive().catch(() => [] as Contest[]),
   ]);
 
   const now = Date.now() / 1000;
@@ -53,7 +57,7 @@ export async function fetchRecentContests(): Promise<Contest[]> {
     if (c.start_epoch_second >= twoWeeksAgo && c.start_epoch_second <= oneWeekLater)
       merged.set(c.id, c);
   }
-  for (const c of atcoderPage) {
+  for (const c of [...atcoderPage, ...awcArchive]) {
     if (c.start_epoch_second >= twoWeeksAgo && c.start_epoch_second <= oneWeekLater && !merged.has(c.id))
       merged.set(c.id, c);
   }
@@ -70,6 +74,18 @@ async function fetchContestsFromAtCoderJp(): Promise<Contest[]> {
   atcoderPageCache = parseContestsHtml(html);
   atcoderPageCachedAt = now;
   return atcoderPageCache;
+}
+
+async function fetchAwcArchive(): Promise<Contest[]> {
+  const now = Date.now();
+  if (awcArchiveCache && now - awcArchiveCachedAt < CACHE_TTL_MS) return awcArchiveCache;
+
+  const res = await fetch(ATCODER_AWC_ARCHIVE, { headers: { 'User-Agent': 'atcoder-discord-bot' } });
+  if (!res.ok) return awcArchiveCache ?? [];
+  const html = await res.text();
+  awcArchiveCache = parseContestsHtml(html);
+  awcArchiveCachedAt = now;
+  return awcArchiveCache;
 }
 
 function parseContestsHtml(html: string): Contest[] {
