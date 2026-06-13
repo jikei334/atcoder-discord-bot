@@ -129,25 +129,35 @@ export function detectContestType(contest: Contest): ContestType | null {
 }
 
 export async function fetchProblemIds(contestId: string): Promise<string[]> {
-  const all = await fetchContests();
-  const contest = all.find(c => c.id === contestId);
-  if (!contest) return [];
-
   const res = await fetch(`https://kenkoooo.com/atcoder/resources/contest-problem.json`);
-  if (!res.ok) return [];
-  const pairs = (await res.json()) as { contest_id: string; problem_id: string }[];
-  const problems = pairs
-    .filter(p => p.contest_id === contestId)
-    .map(p => p.problem_id);
+  if (res.ok) {
+    const pairs = (await res.json()) as { contest_id: string; problem_id: string }[];
+    const labels = pairs
+      .filter(p => p.contest_id === contestId)
+      .map(p => {
+        const parts = p.problem_id.split('_');
+        return parts[parts.length - 1].toUpperCase();
+      })
+      .sort();
+    if (labels.length > 0) return labels;
+  }
 
-  // problem_id は "abc400_a" のような形式。末尾のアルファベット部分を大文字で返す
-  const labels = problems
-    .map(pid => {
-      const parts = pid.split('_');
-      return parts[parts.length - 1].toUpperCase();
-    })
-    .sort();
-  return labels;
+  // kenkoooo にない場合は atcoder.jp のタスクページから取得
+  return fetchProblemIdsFromAtCoderJp(contestId);
+}
+
+async function fetchProblemIdsFromAtCoderJp(contestId: string): Promise<string[]> {
+  const url = `https://atcoder.jp/contests/${encodeURIComponent(contestId)}/tasks`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'atcoder-discord-bot' } });
+  if (!res.ok) return [];
+  const html = await res.text();
+  const taskPattern = new RegExp(`/contests/${contestId}/tasks/${contestId}_([a-z0-9]+)`, 'g');
+  const labels = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = taskPattern.exec(html)) !== null) {
+    labels.add(m[1].toUpperCase());
+  }
+  return [...labels].sort();
 }
 
 export async function fetchAcceptedProblems(atcoderId: string, contestId: string, startEpoch: number): Promise<string[]> {
