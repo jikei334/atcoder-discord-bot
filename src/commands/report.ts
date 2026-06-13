@@ -59,7 +59,16 @@ async function handleCommand(interaction: ChatInputCommandInteraction): Promise<
     return;
   }
 
-  contests.sort((a, b) => b.start_epoch_second - a.start_epoch_second);
+  const now = Date.now() / 1000;
+  contests.sort((a, b) => {
+    const endA = a.start_epoch_second + a.duration_second;
+    const endB = b.start_epoch_second + b.duration_second;
+    const futureA = endA > now;
+    const futureB = endB > now;
+    if (futureA !== futureB) return futureA ? 1 : -1; // 未来は後ろへ
+    if (futureA) return endA - endB;                   // 未来同士: 終了が近い順
+    return endB - endA;                                // 過去同士: 終了が新しい順
+  });
   const options = contests.slice(0, 25).map(c => ({
     label: c.title,
     value: c.id,

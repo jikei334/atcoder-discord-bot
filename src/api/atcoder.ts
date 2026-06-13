@@ -28,6 +28,9 @@ let atcoderPageCache: Contest[] | null = null;
 let atcoderPageCachedAt = 0;
 let awcArchiveCache: Contest[] | null = null;
 let awcArchiveCachedAt = 0;
+let contestProblemCache: { contest_id: string; problem_id: string }[] | null = null;
+let contestProblemCachedAt = 0;
+const problemIdCache = new Map<string, string[]>();
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 export async function fetchContests(): Promise<Contest[]> {
@@ -52,14 +55,18 @@ export async function fetchRecentContests(): Promise<Contest[]> {
   const twoWeeksAgo = now - 14 * 24 * 60 * 60;
   const oneWeekLater = now + 7 * 24 * 60 * 60;
 
+  const MAX_DURATION = 30 * 24 * 60 * 60; // 30日超は常設コンテスト扱いで除外
+  const inWindow = (c: Contest) => {
+    const end = c.start_epoch_second + Math.min(c.duration_second, MAX_DURATION);
+    return end >= twoWeeksAgo && c.start_epoch_second <= oneWeekLater;
+  };
+
   const merged = new Map<string, Contest>();
   for (const c of kenkoooo) {
-    if (c.start_epoch_second >= twoWeeksAgo && c.start_epoch_second <= oneWeekLater)
-      merged.set(c.id, c);
+    if (inWindow(c)) merged.set(c.id, c);
   }
   for (const c of [...atcoderPage, ...awcArchive]) {
-    if (c.start_epoch_second >= twoWeeksAgo && c.start_epoch_second <= oneWeekLater && !merged.has(c.id))
-      merged.set(c.id, c);
+    if (inWindow(c) && !merged.has(c.id)) merged.set(c.id, c);
   }
   return Array.from(merged.values());
 }
