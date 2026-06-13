@@ -181,8 +181,7 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
     } else {
       session.selected.add(param);
     }
-    await interaction.deferUpdate();
-    await interaction.editReply(buildProblemSelectionMessage(session.problemLabels, session.selected, session.contest.title));
+    await interaction.update(buildProblemSelectionMessage(session.problemLabels, session.selected, session.contest.title));
     return;
   }
 
