@@ -17,7 +17,7 @@ async function postWeeklyRanking(client: Client): Promise<void> {
   const { start, end } = getLastWeekRange();
   const startDate = start.slice(0, 10);
   const endDate = end.slice(0, 10);
-  const reports = getReports().filter(r => {
+  const reports = (await getReports()).filter(r => {
     const d = r.contestStartDate ?? r.reportedAt.slice(0, 10);
     return d >= startDate && d < endDate;
   });

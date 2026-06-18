@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { startWeeklyRankingTask } from './tasks/weeklyRanking';
+import { initDb } from './data/db';
 
 dotenv.config();
 
@@ -52,4 +53,9 @@ client.on('interactionCreate', async (interaction: Interaction) => {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+initDb()
+  .then(() => client.login(process.env.DISCORD_TOKEN))
+  .catch(err => {
+    console.error('DB 初期化に失敗しました:', err);
+    process.exit(1);
+  });

@@ -15,7 +15,7 @@ export async function execute(interaction: Interaction): Promise<void> {
 async function handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  const reports = getReports();
+  const reports = await getReports();
 
   // ユーザーごとに種別ごとの参加数を集計
   const userMap = new Map<string, { name: string; counts: Partial<Record<ContestType, number>> }>();

@@ -32,7 +32,11 @@ DISCORD_TOKEN=
 CLIENT_ID=
 GUILD_ID=
 RANKING_CHANNEL_ID=
+POSTGRES_PASSWORD=
+DATABASE_URL=postgresql://atcoder:YOUR_PASSWORD@postgres:5432/atcoder
 ```
+
+> `POSTGRES_PASSWORD` と `DATABASE_URL` 内のパスワード部分は同じ値にしてください。
 
 #### 各値の取得方法
 
@@ -65,18 +69,18 @@ RANKING_CHANNEL_ID=
 
 ### 開発時
 
+開発時は別途 PostgreSQL が必要です。ローカルで PostgreSQL を起動するか、コンテナのみ先に立ち上げてください。
+
 ```bash
+# PostgreSQL だけ先に起動
+podman compose up -d postgres
+
 npm install
 npm run deploy   # スラッシュコマンドを Discord に登録（初回・更新時のみ）
 npm run dev      # 開発用起動（ts-node）
 ```
 
-### 本番（ローカル）
-
-```bash
-npm run build
-npm start
-```
+> 開発時の `DATABASE_URL` はホスト側から接続するため `@localhost:5432` に変更してください。
 
 ### 本番（コンテナ）
 
@@ -90,10 +94,12 @@ podman compose run --rm bot node dist/deploy.js
 podman compose logs -f
 ```
 
+PostgreSQL のデータは `./postgres_data/` ディレクトリに保存されます。
+
 ## インフラ
 
 | 状況 | 項目 | 説明 |
 |------|------|------|
 | [x] | コマンドデプロイスクリプト | `npm run deploy` でスラッシュコマンドを Discord に登録 |
 | [x] | Dockerfile | マルチステージビルドで本番イメージを軽量化 |
-| [x] | compose.yaml | Podman / Docker Compose でのコンテナ起動設定 |
+| [x] | compose.yaml | Podman / Docker Compose でのコンテナ起動設定（PostgreSQL 同梱） |

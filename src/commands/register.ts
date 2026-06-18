@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, Interaction, SlashCommandBuilder } from 'discord.js';
-import { getUsers, saveUsers } from '../data/store';
+import { setUser } from '../data/store';
 
 export const data = new SlashCommandBuilder()
   .setName('register')
@@ -15,13 +15,10 @@ export async function execute(interaction: Interaction): Promise<void> {
 
 async function _execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const atcoderId = interaction.options.getString('atcoder_id', true).trim();
-  const users = getUsers();
-
-  users[interaction.user.id] = {
+  await setUser(interaction.user.id, {
     atcoderId,
     discordDisplayName: interaction.user.displayName,
-  };
-  saveUsers(users);
+  });
 
   await interaction.reply({
     content: `AtCoder ID \`${atcoderId}\` を登録しました。`,

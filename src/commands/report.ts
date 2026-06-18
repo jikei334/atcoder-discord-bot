@@ -17,7 +17,7 @@ import {
 } from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
 import { fetchRecentContests, fetchProblemIds, fetchAcceptedProblems, detectContestType, Contest } from '../api/atcoder';
-import { getUsers, getReports, saveReports, ContestType } from '../data/store';
+import { getUser, findReport, upsertReport, ContestType } from '../data/store';
 
 export const data = new SlashCommandBuilder()
   .setName('report')
@@ -118,8 +118,7 @@ async function handleSelectMenu(interaction: StringSelectMenuInteraction): Promi
   }
 
   // AtCoder ID が登録済みなら AC 済み問題を自動チェック
-  const users = getUsers();
-  const user = users[interaction.user.id];
+  const user = await getUser(interaction.user.id);
   let autoChecked = new Set<string>();
   if (user?.atcoderId) {
     try {
@@ -241,16 +240,13 @@ async function submitReport(
   const solvedProblems = session.problemLabels.filter(l => session.selected.has(l));
   const displayName = interaction.user.displayName;
 
-  const reports = getReports();
-  const existingIndex = reports.findIndex(
-    r => r.discordUserId === interaction.user.id && r.contestId === session.contest.id
-  );
+  const existing = await findReport(interaction.user.id, session.contest.id);
 
   const contestStartDate = new Date(session.contest.start_epoch_second * 1000)
     .toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }); // YYYY-MM-DD
 
   const record = {
-    id: existingIndex >= 0 ? reports[existingIndex].id : uuidv4(),
+    id: existing?.id ?? uuidv4(),
     discordUserId: interaction.user.id,
     discordDisplayName: displayName,
     contestId: session.contest.id,
@@ -262,12 +258,7 @@ async function submitReport(
     reportedAt: new Date().toISOString(),
   };
 
-  if (existingIndex >= 0) {
-    reports[existingIndex] = record;
-  } else {
-    reports.push(record);
-  }
-  saveReports(reports);
+  await upsertReport(record);
 
   const solvedText = solvedProblems.length > 0
     ? `${solvedProblems.join(', ')}（${solvedProblems.length}完）`

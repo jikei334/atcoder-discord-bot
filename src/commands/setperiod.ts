@@ -11,7 +11,7 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js';
-import { getConfig, saveConfig } from '../data/store';
+import { saveConfig } from '../data/store';
 
 export const data = new SlashCommandBuilder()
   .setName('setperiod')
@@ -141,9 +141,7 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction): Promise<v
   const day = String(dayNum).padStart(2, '0');
   const dateStr = `${session.year}-${session.month}-${day}`;
 
-  const config = getConfig();
-  config.periodStartDate = dateStr;
-  saveConfig(config);
+  await saveConfig({ periodStartDate: dateStr });
 
   if (interaction.isFromMessage()) {
     await interaction.update({ content: `集計期間の開始日を **${dateStr}** に設定しました。`, components: [] });

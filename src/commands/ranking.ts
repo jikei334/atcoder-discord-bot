@@ -18,8 +18,7 @@ export async function execute(interaction: Interaction): Promise<void> {
 async function handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  const config = getConfig();
-  const reports = getReports();
+  const [config, reports] = await Promise.all([getConfig(), getReports()]);
 
   const filtered = config.periodStartDate
     ? reports.filter(r => (r.contestStartDate ?? r.reportedAt.slice(0, 10)) >= config.periodStartDate!)
