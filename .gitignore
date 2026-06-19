@@ -3,3 +3,6 @@ dist/
 .env
 /data/
 postgres_data/
+cdk/node_modules/
+cdk/dist/
+cdk.out/

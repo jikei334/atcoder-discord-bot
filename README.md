@@ -96,6 +96,61 @@ podman compose logs -f
 
 PostgreSQL のデータは `./postgres_data/` ディレクトリに保存されます。
 
+## AWS へのデプロイ（CDK）
+
+### 前提
+
+- AWS CloudShell（または AWS CLI 設定済みの環境）
+- 初回のみ: CDK ブートストラップが必要
+
+```bash
+# CDK CLI のインストール（CloudShell では毎セッション必要）
+npm install -g aws-cdk ts-node
+
+cd cdk
+npm install
+
+# 初回のみ: CDK 用 S3 バケット等を作成
+cdk bootstrap
+```
+
+### デプロイ（EC2 インスタンスの作成）
+
+```bash
+cd cdk
+cdk deploy
+```
+
+デプロイ後に表示される `ConnectCommand` を使って SSM で接続し、`.env` を作成します。
+
+```bash
+# SSM で接続（デプロイ後に表示されるコマンドをコピー）
+aws ssm start-session --target i-xxxxxxxxxxxxxxxxx --region ap-northeast-1
+
+# 接続後
+cd /opt/atcoder-bot
+cp .env.example .env
+vi .env                                                      # 各値を設定
+systemctl enable --now atcoder-bot                           # 起動 & 自動起動設定
+docker-compose run --rm bot node dist/deploy.js              # スラッシュコマンド登録
+```
+
+### 全リソースの削除（使い終わったとき）
+
+```bash
+cd cdk
+cdk destroy
+```
+
+これだけで EC2・セキュリティグループ・IAM ロールがすべて削除されます。
+
+### ログ確認
+
+```bash
+journalctl -u atcoder-bot -f          # Bot のログ
+cat /var/log/atcoder-bot-setup.log    # 初回セットアップログ
+```
+
 ## インフラ
 
 | 状況 | 項目 | 説明 |
