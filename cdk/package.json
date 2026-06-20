@@ -9,6 +9,7 @@
     "synth": "cdk synth"
   },
   "dependencies": {
+    "@aws-cdk/cloud-assembly-schema": "^53.25.0",
     "aws-cdk-lib": "2.257.0",
     "constructs": "^10.0.0"
   },
