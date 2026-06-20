@@ -10,13 +10,35 @@ export class BotStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // IAM ロール（SSM Session Manager でキーペア不要でアクセスするため）
+    // EBS と EC2 を同じ AZ に固定する
+    const availabilityZone = this.availabilityZones[0];
+
+    // IAM ロール（SSM アクセス + EBS セルフアタッチ権限）
     const role = new iam.Role(this, 'BotRole', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
       ],
     });
+
+    // データ永続化用 EBS ボリューム
+    // RETAIN: cdk destroy してもこのボリュームは削除されない
+    const dataVolume = new ec2.Volume(this, 'DataVolume', {
+      availabilityZone,
+      size: cdk.Size.gibibytes(20),
+      volumeType: ec2.EbsDeviceVolumeType.GP3,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // EC2 が起動時に自分でボリュームをアタッチできるよう権限付与
+    const volumeArn = `arn:aws:ec2:${this.region}:${this.account}:volume/${dataVolume.volumeId}`;
+    role.addToPolicy(new iam.PolicyStatement({
+      actions: ['ec2:AttachVolume'],
+      resources: [
+        volumeArn,
+        `arn:aws:ec2:${this.region}:${this.account}:instance/*`,
+      ],
+    }));
 
     // デフォルト VPC を使用
     const vpc = ec2.Vpc.fromLookup(this, 'DefaultVpc', { isDefault: true });
@@ -52,11 +74,35 @@ export class BotStack extends cdk.Stack {
       // リポジトリのクローン
       `git clone --branch ${REPO_BRANCH} ${REPO_URL} /opt/atcoder-bot`,
 
-      // PostgreSQL コンテナ（UID 999）がアクセスできるようパーミッション設定
-      'mkdir -p /opt/atcoder-bot/postgres_data',
-      'chown 999:999 /opt/atcoder-bot/postgres_data',
+      // ── EBS ボリュームのアタッチ ──────────────────────────────────────
+      // IMDSv2 でインスタンス情報を取得
+      'TOKEN=$(curl -sf -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300")',
+      'INSTANCE_ID=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)',
+      'REGION=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/region)',
 
-      // SSM 接続ユーザー（ssm-user）が .env を作成・編集できるよう書き込み権限を付与
+      // EBS をセルフアタッチ（既にアタッチ済みの場合はエラーを無視）
+      `aws ec2 attach-volume --volume-id ${dataVolume.volumeId} --instance-id $INSTANCE_ID --device /dev/xvdf --region $REGION || true`,
+
+      // デバイスが OS に現れるまで待機（T3 は NVMe: /dev/nvme1n1）
+      'for i in $(seq 1 60); do [ -b /dev/nvme1n1 ] && break; echo "EBS を待機中... ($i/60)"; sleep 5; done',
+      '[ -b /dev/nvme1n1 ] || { echo "EBS のアタッチに失敗しました"; exit 1; }',
+
+      // 未フォーマットなら初期化（初回のみ。2回目以降はスキップ）
+      'blkid /dev/nvme1n1 || mkfs.ext4 /dev/nvme1n1',
+
+      // postgres_data ディレクトリにマウント
+      'mkdir -p /opt/atcoder-bot/postgres_data',
+      'mount /dev/nvme1n1 /opt/atcoder-bot/postgres_data',
+
+      // 再起動後も自動マウント（UUID で指定）
+      'UUID=$(blkid -s UUID -o value /dev/nvme1n1)',
+      'echo "UUID=$UUID /opt/atcoder-bot/postgres_data ext4 defaults,nofail 0 2" >> /etc/fstab',
+
+      // PostgreSQL コンテナ（UID 999）用パーミッション
+      'chown 999:999 /opt/atcoder-bot/postgres_data',
+      // ─────────────────────────────────────────────────────────────────
+
+      // SSM 接続ユーザーが .env を作成・編集できるよう書き込み権限を付与
       'chmod o+w /opt/atcoder-bot',
 
       // systemd サービス登録（.env 作成後に手動で有効化）
@@ -80,10 +126,13 @@ EOF`,
       'echo "=== セットアップ完了 ==="',
     );
 
-    // EC2 インスタンス
+    // EC2 インスタンス（EBS と同じ AZ に配置）
     const instance = new ec2.Instance(this, 'BotInstance', {
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PUBLIC,
+        availabilityZones: [availabilityZone],
+      },
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
       machineImage: ec2.MachineImage.latestAmazonLinux2023(),
       securityGroup: sg,
@@ -92,10 +141,15 @@ EOF`,
       associatePublicIpAddress: true,
     });
 
-    // デプロイ後に表示される接続コマンド
+    // デプロイ後に表示される情報
     new cdk.CfnOutput(this, 'ConnectCommand', {
       description: 'SSM で接続するコマンド',
       value: `aws ssm start-session --target ${instance.instanceId} --region ${this.region}`,
+    });
+
+    new cdk.CfnOutput(this, 'DataVolumeId', {
+      description: 'EBS ボリューム ID（cdk destroy 後も保持されます）',
+      value: dataVolume.volumeId,
     });
 
     new cdk.CfnOutput(this, 'SetupLog', {
