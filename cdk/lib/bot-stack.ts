@@ -50,6 +50,9 @@ export class BotStack extends cdk.Stack {
       'mkdir -p /opt/atcoder-bot/postgres_data',
       'chown 999:999 /opt/atcoder-bot/postgres_data',
 
+      // SSM 接続ユーザー（ssm-user）が .env を作成・編集できるよう書き込み権限を付与
+      'chmod o+w /opt/atcoder-bot',
+
       // systemd サービス登録（.env 作成後に手動で有効化）
       `cat > /etc/systemd/system/atcoder-bot.service << 'EOF'
 [Unit]
