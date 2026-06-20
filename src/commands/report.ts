@@ -3,6 +3,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ChatInputCommandInteraction,
+  EmbedBuilder,
   GuildTextBasedChannel,
   Interaction,
   MessageFlags,
@@ -18,6 +19,13 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { fetchRecentContests, fetchProblemIds, fetchAcceptedProblems, detectContestType, Contest } from '../api/atcoder';
 import { getUser, findReport, upsertReport, ContestType } from '../data/store';
+
+function colorFromUserId(userId: string): number {
+  let hash = 0;
+  for (const ch of userId) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  // 暗すぎる色を避けるため上位ビットを立てる
+  return 0x404040 + (hash % 0xBFBFBF);
+}
 
 export const data = new SlashCommandBuilder()
   .setName('report')
@@ -265,12 +273,15 @@ async function submitReport(
     : 'なし';
 
   const lines = [
-    `🎉 ${displayName} が ${session.contest.title} に参加！`,
+    `🎉 **${session.contest.title}** に参加！`,
     `✅ 解いた問題: ${solvedText}`,
   ];
   if (comment) lines.push(`💬「${comment}」`);
 
-  const publicMessage = lines.join('\n');
+  const embed = new EmbedBuilder()
+    .setAuthor({ name: displayName, iconURL: interaction.user.displayAvatarURL() })
+    .setDescription(lines.join('\n'))
+    .setColor(colorFromUserId(interaction.user.id));
 
   if (interaction.isButton()) {
     await interaction.update({ content: '報告を受け付けました！', components: [] });
@@ -278,5 +289,5 @@ async function submitReport(
     await interaction.reply({ content: '報告を受け付けました！', ephemeral: true });
   }
 
-  await (interaction.channel as GuildTextBasedChannel).send(publicMessage);
+  await (interaction.channel as GuildTextBasedChannel).send({ embeds: [embed] });
 }
