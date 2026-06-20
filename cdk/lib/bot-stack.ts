@@ -74,6 +74,7 @@ EOF`,
     // EC2 インスタンス
     const instance = new ec2.Instance(this, 'BotInstance', {
       vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
       machineImage: ec2.MachineImage.latestAmazonLinux2023(),
       securityGroup: sg,
