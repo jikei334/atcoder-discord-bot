@@ -43,6 +43,12 @@ export class BotStack extends cdk.Stack {
       'curl -fsSL "https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose',
       'chmod +x /usr/local/bin/docker-compose',
 
+      // Docker Buildx インストール（compose build に必要）
+      'mkdir -p /usr/local/lib/docker/cli-plugins',
+      'BUILDX_VERSION=$(curl -fsSL https://api.github.com/repos/docker/buildx/releases/latest | grep \'"tag_name"\' | sed \'s/.*"v\\([^"]*\\)".*/\\1/\')',
+      'curl -fsSL "https://github.com/docker/buildx/releases/download/v${BUILDX_VERSION}/buildx-v${BUILDX_VERSION}.linux-amd64" -o /usr/local/lib/docker/cli-plugins/docker-buildx',
+      'chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx',
+
       // リポジトリのクローン
       `git clone --branch ${REPO_BRANCH} ${REPO_URL} /opt/atcoder-bot`,
 
