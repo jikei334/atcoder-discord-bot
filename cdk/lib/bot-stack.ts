@@ -10,9 +10,6 @@ export class BotStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // EBS と EC2 を同じ AZ に固定する
-    const availabilityZone = this.availabilityZones[0];
-
     // IAM ロール（SSM アクセス + EBS セルフアタッチ権限）
     const role = new iam.Role(this, 'BotRole', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
@@ -42,6 +39,9 @@ export class BotStack extends cdk.Stack {
 
     // デフォルト VPC を使用
     const vpc = ec2.Vpc.fromLookup(this, 'DefaultVpc', { isDefault: true });
+
+    // EBS と EC2 を VPC の最初のパブリックサブネットと同じ AZ に固定する
+    const availabilityZone = vpc.publicSubnets[0].availabilityZone;
 
     // セキュリティグループ（アウトバウンドのみ。インバウンド不要）
     const sg = new ec2.SecurityGroup(this, 'BotSg', {
@@ -131,7 +131,6 @@ EOF`,
       vpc,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PUBLIC,
-        availabilityZones: [availabilityZone],
       },
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
       machineImage: ec2.MachineImage.latestAmazonLinux2023(),
