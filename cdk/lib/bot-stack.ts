@@ -4,7 +4,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 const REPO_URL = 'https://github.com/jikei334/atcoder-discord-bot.git';
-const REPO_BRANCH = 'aws';
+const REPO_BRANCH = 'main';
 
 export class BotStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
