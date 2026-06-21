@@ -21,3 +21,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  web:
+    build: .
+    command: ["node", "dist/web/server.js"]
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy

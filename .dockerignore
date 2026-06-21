@@ -3,3 +3,5 @@ dist/
 data/
 postgres_data/
 .env
+web-frontend/node_modules/
+web-frontend/dist/

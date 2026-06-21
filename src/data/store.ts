@@ -27,7 +27,7 @@ export interface ConfigRecord {
 type UsersData = Record<string, UserRecord>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToReport(row: any): ReportRecord {
+export function rowToReport(row: any): ReportRecord {
   return {
     id: row.id,
     discordUserId: row.discord_user_id,

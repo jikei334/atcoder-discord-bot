@@ -43,12 +43,13 @@ export class BotStack extends cdk.Stack {
       ],
     }));
 
-    // セキュリティグループ（アウトバウンドのみ。インバウンド不要）
+    // セキュリティグループ（Web UI 用インバウンド 3000 のみ許可）
     const sg = new ec2.SecurityGroup(this, 'BotSg', {
       vpc,
-      description: 'AtCoder Discord Bot - outbound only',
+      description: 'AtCoder Discord Bot',
       allowAllOutbound: true,
     });
+    sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(3000), 'Web UI');
 
     // 初回起動時に実行されるセットアップスクリプト
     const userData = ec2.UserData.forLinux();
