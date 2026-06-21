@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "build": "tsc",
-    "deploy": "cdk deploy",
+    "deploy": "bash backup.sh && cdk deploy",
     "destroy": "cdk destroy",
     "diff": "cdk diff",
     "synth": "cdk synth"
