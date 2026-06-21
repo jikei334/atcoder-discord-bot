@@ -100,7 +100,9 @@ export class BotStack extends cdk.Stack {
       'echo "UUID=$UUID /opt/atcoder-bot/postgres_data ext4 defaults,nofail 0 2" >> /etc/fstab',
 
       // PostgreSQL コンテナ（UID 999）用パーミッション
-      'chown 999:999 /opt/atcoder-bot/postgres_data',
+      // マウントポイント直下には lost+found があるためサブディレクトリを使う
+      'mkdir -p /opt/atcoder-bot/postgres_data/pgdata',
+      'chown 999:999 /opt/atcoder-bot/postgres_data/pgdata',
       // ─────────────────────────────────────────────────────────────────
 
       // SSM 接続ユーザーが .env を作成・編集できるよう書き込み権限を付与
