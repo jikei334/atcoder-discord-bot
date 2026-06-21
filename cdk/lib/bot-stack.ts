@@ -128,6 +128,7 @@ EOF`,
     );
 
     // EC2 インスタンス（EBS と同じ AZ に配置）
+    // userDataCausesReplacement: UserData 変更時に停止→再起動ではなくインスタンス置き換えを強制する
     const instance = new ec2.Instance(this, 'BotInstance', {
       vpc,
       vpcSubnets: {
@@ -139,6 +140,7 @@ EOF`,
       role,
       userData,
       associatePublicIpAddress: true,
+      userDataCausesReplacement: true,
     });
 
     // デプロイ後に表示される情報
