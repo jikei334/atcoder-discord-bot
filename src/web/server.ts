@@ -21,7 +21,7 @@ app.get('/api/me', requireAuth, (req, res) => {
 });
 
 // SPA キャッチオール（React Router に委譲）
-app.get('*', (_req, res) => {
+app.get('/{*path}', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
