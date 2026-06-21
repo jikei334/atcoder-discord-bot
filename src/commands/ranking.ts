@@ -59,9 +59,15 @@ function buildCategorySection(
     entry.total += 1;
   }
 
-  const ranking = [...userMap.entries()]
-    .sort((a, b) => b[1].total - a[1].total)
-    .map(([id, data], index) => ({ id, rank: index + 1, ...data }));
+  const sorted = [...userMap.entries()].sort((a, b) => b[1].total - a[1].total);
+  const ranking: Array<{ id: string; rank: number; name: string; counts: Partial<Record<ContestType, number>>; total: number }> = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const [id, data] = sorted[i];
+    const rank = i === 0 ? 1
+      : data.total === sorted[i - 1][1].total ? ranking[i - 1].rank
+      : ranking[i - 1].rank + 1;
+    ranking.push({ id, rank, ...data });
+  }
 
   const lines: string[] = [`**${title}**`];
 
@@ -71,11 +77,11 @@ function buildCategorySection(
   }
 
   const medals = ['🥇', '🥈', '🥉'];
-  const top3 = ranking.slice(0, 3);
+  const topEntries = ranking.filter(r => r.rank <= 3);
   const self = ranking.find(r => r.id === requesterId);
-  const selfInTop3 = top3.some(r => r.id === requesterId);
+  const selfInTop = topEntries.some(r => r.id === requesterId);
 
-  const toShow = selfInTop3 || !self ? top3 : [...top3, self];
+  const toShow = selfInTop || !self ? topEntries : [...topEntries, self];
 
   for (const entry of toShow) {
     const medal = entry.rank <= 3 ? medals[entry.rank - 1] : `${entry.rank}位`;

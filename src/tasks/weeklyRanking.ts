@@ -36,7 +36,7 @@ async function postWeeklyRanking(client: Client): Promise<void> {
   const medals = ['🥇', '🥈', '🥉'];
   const lines: string[] = [`📊 **週次ランキング**（${formatDate(start)}〜${formatDate(end, -1)}）`, ''];
 
-  for (const entry of ranking.slice(0, 3)) {
+  for (const entry of ranking.filter(r => r.rank <= 3)) {
     const medal = medals[entry.rank - 1];
     const breakdown = Object.entries(entry.counts)
       .map(([type, count]) => `${type}×${count}`)
@@ -85,7 +85,14 @@ function buildRanking(reports: ReportRecord[]) {
     entry.total += 1;
   }
 
-  return [...userMap.entries()]
-    .sort((a, b) => b[1].total - a[1].total)
-    .map(([, data], index) => ({ rank: index + 1, ...data }));
+  const sorted = [...userMap.entries()].sort((a, b) => b[1].total - a[1].total);
+  const result: Array<{ rank: number; name: string; counts: Partial<Record<ContestType, number>>; total: number }> = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const [, data] = sorted[i];
+    const rank = i === 0 ? 1
+      : data.total === sorted[i - 1][1].total ? result[i - 1].rank
+      : result[i - 1].rank + 1;
+    result.push({ rank, ...data });
+  }
+  return result;
 }
