@@ -1,5 +1,13 @@
 export type ContestType = 'ABC' | 'ARC' | 'AGC' | 'AHC-Short' | 'AHC-Long' | 'AWC' | 'Other';
 
+export interface Contest {
+  id: string;
+  title: string;
+  start_epoch_second: number;
+  duration_second: number;
+  rate_change: string;
+}
+
 export interface AuthUser {
   userId: string;
   displayName: string;

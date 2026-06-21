@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMe, getReports, addReport, deleteReport } from '../api';
-import type { AuthUser, ReportRecord, AddReportInput, ContestType } from '../types';
-
-const CONTEST_TYPES: ContestType[] = ['ABC', 'ARC', 'AGC', 'AHC-Short', 'AHC-Long', 'AWC', 'Other'];
+import { getMe, getReports, addReport, deleteReport, getContests, getProblemLabels } from '../api';
+import type { AuthUser, ReportRecord, AddReportInput, ContestType, Contest } from '../types';
 
 const TYPE_BADGE: Record<string, string> = {
   ABC: 'primary', ARC: 'success', AGC: 'danger',
@@ -11,10 +9,28 @@ const TYPE_BADGE: Record<string, string> = {
   AWC: 'info', Other: 'secondary',
 };
 
-const PROBLEM_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const DEFAULT_PROBLEMS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+
+function detectType(id: string, duration: number): ContestType {
+  const lower = id.toLowerCase();
+  if (lower.startsWith('abc')) return 'ABC';
+  if (lower.startsWith('arc')) return 'ARC';
+  if (lower.startsWith('agc')) return 'AGC';
+  if (lower.startsWith('awc')) return 'AWC';
+  if (lower.startsWith('ahc')) return duration < 86400 ? 'AHC-Short' : 'AHC-Long';
+  return 'Other';
+}
+
+function epochToDate(epoch: number): string {
+  return new Date(epoch * 1000).toISOString().slice(0, 10);
+}
+
+function todayDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 const emptyForm = (): AddReportInput => ({
-  contestName: '', contestId: '', contestType: '', contestStartDate: '',
+  contestName: '', contestId: '', contestType: 'Other', contestStartDate: todayDate(),
   solvedProblems: [], comment: '',
 });
 
@@ -28,6 +44,14 @@ export default function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
+  const [contests, setContests] = useState<Contest[]>([]);
+  const [contestIdInput, setContestIdInput] = useState('');
+  const [suggestions, setSuggestions] = useState<Contest[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [problemLabels, setProblemLabels] = useState<string[]>(DEFAULT_PROBLEMS);
+  const [loadingProblems, setLoadingProblems] = useState(false);
+  const suggestionsRef = useRef<HTMLUListElement>(null);
+
   useEffect(() => {
     Promise.all([getMe(), getReports()]).then(([me, reps]) => {
       if (!me) { navigate('/'); return; }
@@ -37,6 +61,70 @@ export default function DashboardPage() {
     });
   }, [navigate]);
 
+  function openModal() {
+    setForm(emptyForm());
+    setContestIdInput('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setProblemLabels(DEFAULT_PROBLEMS);
+    setFormError('');
+    setShowModal(true);
+
+    if (contests.length === 0) {
+      getContests().then(c => setContests(c ?? []));
+    }
+  }
+
+  function handleContestIdChange(value: string) {
+    setContestIdInput(value);
+    const lower = value.toLowerCase().trim();
+
+    if (lower.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } else {
+      const filtered = contests
+        .filter(c => c.id.includes(lower) || c.title.toLowerCase().includes(lower))
+        .slice(0, 10);
+      setSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    }
+
+    const exact = contests.find(c => c.id === lower);
+    if (exact) {
+      applyContest(exact);
+    } else {
+      setForm(p => ({
+        ...p,
+        contestId: value,
+        contestName: value,
+        contestType: detectType(value, 0),
+        contestStartDate: todayDate(),
+        solvedProblems: [],
+      }));
+      setProblemLabels(DEFAULT_PROBLEMS);
+    }
+  }
+
+  function applyContest(contest: Contest) {
+    setContestIdInput(contest.id);
+    setShowSuggestions(false);
+    setForm(p => ({
+      ...p,
+      contestId: contest.id,
+      contestName: contest.title,
+      contestType: detectType(contest.id, contest.duration_second),
+      contestStartDate: epochToDate(contest.start_epoch_second),
+      solvedProblems: [],
+    }));
+
+    setLoadingProblems(true);
+    getProblemLabels(contest.id).then(labels => {
+      setProblemLabels(labels && labels.length > 0 ? labels : DEFAULT_PROBLEMS);
+      setLoadingProblems(false);
+    });
+  }
+
   async function handleDelete(id: string) {
     if (!confirm('この記録を削除しますか？')) return;
     await deleteReport(id);
@@ -45,6 +133,7 @@ export default function DashboardPage() {
 
   async function handleSubmit() {
     setFormError('');
+    if (!form.contestId.trim()) { setFormError('コンテストIDを入力してください'); return; }
     setSubmitting(true);
     const result = await addReport(form);
     setSubmitting(false);
@@ -52,7 +141,6 @@ export default function DashboardPage() {
     if (result.error) { setFormError(result.error); return; }
 
     setShowModal(false);
-    setForm(emptyForm());
     setLoading(true);
     const reps = await getReports();
     setReports(reps ?? []);
@@ -67,6 +155,10 @@ export default function DashboardPage() {
         : [...prev.solvedProblems, label],
     }));
   }
+
+  const knownContest = form.contestId
+    ? contests.find(c => c.id === form.contestId.toLowerCase())
+    : undefined;
 
   return (
     <>
@@ -88,7 +180,7 @@ export default function DashboardPage() {
       <div className="container py-4" style={{ maxWidth: 900 }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h2 className="h5 mb-0">参加記録</h2>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowModal(true)}>
+          <button className="btn btn-primary btn-sm" onClick={openModal}>
             ＋ 過去の結果を追加
           </button>
         </div>
@@ -150,63 +242,81 @@ export default function DashboardPage() {
                 <button className="btn-close" onClick={() => setShowModal(false)} />
               </div>
               <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">コンテスト名 <span className="text-danger">*</span></label>
-                  <input
-                    className="form-control"
-                    placeholder="例: AtCoder Beginner Contest 390"
-                    value={form.contestName}
-                    onChange={e => setForm(p => ({ ...p, contestName: e.target.value }))}
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">
-                    コンテストID <span className="text-muted small">（任意・入力するとDiscord報告と紐づく）</span>
-                  </label>
+
+                {/* Contest ID with autocomplete */}
+                <div className="mb-3 position-relative">
+                  <label className="form-label">コンテストID <span className="text-danger">*</span></label>
                   <input
                     className="form-control"
                     placeholder="例: abc390"
-                    value={form.contestId}
-                    onChange={e => setForm(p => ({ ...p, contestId: e.target.value }))}
+                    value={contestIdInput}
+                    autoComplete="off"
+                    onChange={e => handleContestIdChange(e.target.value)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                    onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                   />
+                  {showSuggestions && (
+                    <ul
+                      ref={suggestionsRef}
+                      className="list-group position-absolute w-100 shadow"
+                      style={{ zIndex: 1050, maxHeight: 200, overflowY: 'auto' }}
+                    >
+                      {suggestions.map(c => (
+                        <li
+                          key={c.id}
+                          className="list-group-item list-group-item-action py-1 px-3"
+                          style={{ cursor: 'pointer' }}
+                          onMouseDown={() => applyContest(c)}
+                        >
+                          <span className="text-muted small me-2">{c.id}</span>
+                          {c.title}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {form.contestId && (
+                    <div className="form-text">
+                      {knownContest ? (
+                        <>
+                          {form.contestName}{' '}
+                          <span className={`badge bg-${TYPE_BADGE[form.contestType] ?? 'secondary'}`}>
+                            {form.contestType}
+                          </span>
+                          {' '}{form.contestStartDate}
+                        </>
+                      ) : (
+                        <>
+                          未知のコンテスト —{' '}
+                          <span className="badge bg-secondary">Other</span>
+                          として登録されます
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="mb-3">
-                  <label className="form-label">種別 <span className="text-danger">*</span></label>
-                  <select
-                    className="form-select"
-                    value={form.contestType}
-                    onChange={e => setForm(p => ({ ...p, contestType: e.target.value }))}
-                  >
-                    <option value="">選択してください</option>
-                    {CONTEST_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">開催日 <span className="text-danger">*</span></label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={form.contestStartDate}
-                    onChange={e => setForm(p => ({ ...p, contestStartDate: e.target.value }))}
-                  />
-                </div>
+
+                {/* Problem selection */}
                 <div className="mb-3">
                   <label className="form-label">解いた問題</label>
-                  <div className="d-flex gap-3 flex-wrap">
-                    {PROBLEM_LABELS.map(label => (
-                      <div key={label} className="form-check">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id={`prob-${label}`}
-                          checked={form.solvedProblems.includes(label)}
-                          onChange={() => toggleProblem(label)}
-                        />
-                        <label className="form-check-label" htmlFor={`prob-${label}`}>{label}</label>
-                      </div>
-                    ))}
-                  </div>
+                  {loadingProblems ? (
+                    <div className="text-muted small">問題を取得中...</div>
+                  ) : (
+                    <div className="d-flex gap-2 flex-wrap">
+                      {problemLabels.map(label => (
+                        <button
+                          key={label}
+                          type="button"
+                          className={`btn btn-sm ${form.solvedProblems.includes(label) ? 'btn-primary' : 'btn-outline-secondary'}`}
+                          onClick={() => toggleProblem(label)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {/* Comment */}
                 <div className="mb-3">
                   <label className="form-label">感想（任意）</label>
                   <input
@@ -217,6 +327,7 @@ export default function DashboardPage() {
                     onChange={e => setForm(p => ({ ...p, comment: e.target.value }))}
                   />
                 </div>
+
                 {formError && <div className="text-danger small">{formError}</div>}
               </div>
               <div className="modal-footer">

@@ -1,4 +1,4 @@
-import type { AuthUser, ReportRecord, AddReportInput } from './types';
+import type { AuthUser, ReportRecord, AddReportInput, Contest } from './types';
 
 async function apiFetch<T>(method: string, path: string, body?: unknown): Promise<T | null> {
   const res = await fetch(path, {
@@ -16,3 +16,7 @@ export const addReport = (data: AddReportInput) =>
   apiFetch<{ ok: boolean; error?: string }>('POST', '/api/reports', data);
 export const deleteReport = (id: string) =>
   apiFetch<{ ok: boolean }>('DELETE', `/api/reports/${id}`);
+
+export const getContests = () => apiFetch<Contest[]>('GET', '/api/contests');
+export const getProblemLabels = (contestId: string) =>
+  apiFetch<string[]>('GET', `/api/contests/${encodeURIComponent(contestId)}/problems`);

@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 import { authRouter } from './routes/auth';
 import { reportsRouter } from './routes/reports';
+import { contestsRouter } from './routes/contests';
 import { requireAuth } from './middleware/auth';
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/auth', authRouter);
 app.use('/api/reports', requireAuth, reportsRouter);
+app.use('/api/contests', requireAuth, contestsRouter);
 
 app.get('/api/me', requireAuth, (req, res) => {
   res.json(req.user);

@@ -26,16 +26,16 @@ const addReport: RequestHandler = async (req, res) => {
     comment?: string;
   };
 
-  if (!contestName?.trim()) { res.status(400).json({ error: 'コンテスト名は必須です' }); return; }
   if (!contestType || !CONTEST_TYPES.includes(contestType as ContestType)) {
     res.status(400).json({ error: '種別が不正です' }); return;
-  }
-  if (!contestStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(contestStartDate)) {
-    res.status(400).json({ error: '日付が不正です' }); return;
   }
 
   const id = uuidv4();
   const effectiveContestId = contestId?.trim() || `manual-${uuidv4()}`;
+  const effectiveName = contestName?.trim() || effectiveContestId;
+  const effectiveDate = (contestStartDate && /^\d{4}-\d{2}-\d{2}$/.test(contestStartDate))
+    ? contestStartDate
+    : new Date().toISOString().slice(0, 10);
   const db = getPool();
 
   await db.query(
@@ -56,9 +56,9 @@ const addReport: RequestHandler = async (req, res) => {
       req.user!.userId,
       req.user!.displayName,
       effectiveContestId,
-      contestName.trim(),
+      effectiveName,
       contestType,
-      contestStartDate,
+      effectiveDate,
       solvedProblems ?? [],
       comment?.trim() ?? '',
       new Date().toISOString(),
